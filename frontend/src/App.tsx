@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Layout, type View } from '@/components/Layout';
 import { Dashboard } from '@/components/Dashboard';
+import { Chat } from '@/components/Chat';
 
 function App() {
   const [view, setView] = useState<View>('dashboard');
@@ -8,7 +9,7 @@ function App() {
   return (
     <Layout currentView={view} onNavigate={setView}>
       {view === 'dashboard' && <Dashboard />}
-      {view === 'chat' && <PlaceholderView title="Chat" description="AI security chat interface coming soon." />}
+      {view === 'chat' && <Chat />}
       {view === 'settings' && <PlaceholderView title="Settings" description="LLM backend configuration coming soon." />}
     </Layout>
   );

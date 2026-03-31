@@ -36,7 +36,7 @@ Install with: `sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev`
 - [x] Cyberpunk dark theme with neon accents (`src/index.css` theme tokens)
 - [x] Generate Wails bindings for frontend TypeScript (manual bindings matching Go API)
 - [x] Build Dashboard view (security score gauge, finding summary, system metrics, findings list)
-- [ ] Build Chat/Audit view (message interface with tool call rendering)
+- [x] Build Chat/Audit view (message bubbles, tool call cards, inline code formatting, empty state with suggestions)
 - [ ] Build Settings view (LLM backend toggle, license key)
 
 ## Phase 4: Integration & Polish
