@@ -11,14 +11,16 @@ import (
 	"neuropanopticon/backend/agent"
 	"neuropanopticon/backend/config"
 	"neuropanopticon/backend/models"
+	"neuropanopticon/backend/scanner"
 )
 
 // App struct serves as the bridge between the Go backend and the React frontend.
 // All exported methods are automatically bound to the Wails runtime.
 type App struct {
-	ctx   context.Context
-	agent *agent.Agent
-	cfg   *config.AppConfig
+	ctx     context.Context
+	agent   *agent.Agent
+	cfg     *config.AppConfig
+	scanner *scanner.Scanner
 }
 
 // NewApp creates a new App application struct.
@@ -43,6 +45,10 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 	a.agent = ag
+
+	// Start background security scanner
+	a.scanner = scanner.New(cfg.Security.ScanIntervalSeconds)
+	a.scanner.Start(ctx)
 }
 
 // SendMessage sends a user message to the AI agent and returns the response.
@@ -97,14 +103,33 @@ func (a *App) GetSystemStatus() *models.SystemStatus {
 		status.MemoryTotal = float64(vmem.Total) / (1024 * 1024 * 1024)
 	}
 
-	// Placeholder security score
-	status.Score = models.SecurityScore{
-		Score:       -1, // -1 means not yet scanned
-		MaxScore:    100,
-		LastUpdated: time.Now(),
+	// Real security score from background scanner
+	if a.scanner != nil {
+		status.Score = a.scanner.Score()
+	} else {
+		status.Score = models.SecurityScore{
+			Score:       -1, // -1 means not yet scanned
+			MaxScore:    100,
+			LastUpdated: time.Now(),
+		}
 	}
 
 	return status
+}
+
+// GetFindings returns the latest security findings from the background scanner.
+func (a *App) GetFindings() []models.Finding {
+	if a.scanner == nil {
+		return nil
+	}
+	return a.scanner.Findings()
+}
+
+// shutdown is called when the Wails app is closing.
+func (a *App) shutdown(ctx context.Context) {
+	if a.scanner != nil {
+		a.scanner.Stop()
+	}
 }
 
 // GetConfig returns the current application configuration.

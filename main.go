@@ -24,6 +24,7 @@ func main() {
 		// Dark background matching cyberpunk theme
 		BackgroundColour: &options.RGBA{R: 10, G: 10, B: 20, A: 1},
 		OnStartup:        app.startup,
+		OnShutdown:       app.shutdown,
 		Bind: []interface{}{
 			app,
 		},
