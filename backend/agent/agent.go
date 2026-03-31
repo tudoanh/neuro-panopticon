@@ -95,15 +95,18 @@ func New(cfg *config.AppConfig) (*Agent, error) {
 
 // Chat sends a user message and runs the agent loop until a final response is produced.
 // It returns the assistant's response and any tool calls that were made.
+//
+// The mutex is held only while reading/writing the message slice, NOT during
+// LLM API calls or tool executions (which can take minutes). This allows
+// Reset() and other methods to proceed without blocking.
 func (a *Agent) Chat(ctx context.Context, userMessage string) (*ChatResponse, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
 	// Add user message
+	a.mu.Lock()
 	a.messages = append(a.messages, providers.Message{
 		Role:    "user",
 		Content: userMessage,
 	})
+	a.mu.Unlock()
 
 	var allToolCalls []models.ToolCall
 
@@ -115,8 +118,14 @@ func (a *Agent) Chat(ctx context.Context, userMessage string) (*ChatResponse, er
 		default:
 		}
 
+		// Snapshot messages under lock for the LLM call
+		a.mu.Lock()
+		msgs := make([]providers.Message, len(a.messages))
+		copy(msgs, a.messages)
+		a.mu.Unlock()
+
 		toolDefs := a.tools.ToProviderDefs()
-		resp, err := a.provider.Chat(ctx, a.messages, toolDefs, a.model, map[string]any{
+		resp, err := a.provider.Chat(ctx, msgs, toolDefs, a.model, map[string]any{
 			"temperature": a.cfg.LLM.Temperature,
 			"max_tokens":  a.cfg.LLM.MaxTokens,
 		})
@@ -127,10 +136,12 @@ func (a *Agent) Chat(ctx context.Context, userMessage string) (*ChatResponse, er
 
 		// If no tool calls, we have a final response
 		if len(resp.ToolCalls) == 0 {
+			a.mu.Lock()
 			a.messages = append(a.messages, providers.Message{
 				Role:    "assistant",
 				Content: resp.Content,
 			})
+			a.mu.Unlock()
 			return &ChatResponse{
 				Content:   resp.Content,
 				ToolCalls: allToolCalls,
@@ -138,13 +149,15 @@ func (a *Agent) Chat(ctx context.Context, userMessage string) (*ChatResponse, er
 		}
 
 		// Add assistant message with tool calls
+		a.mu.Lock()
 		a.messages = append(a.messages, providers.Message{
 			Role:      "assistant",
 			Content:   resp.Content,
 			ToolCalls: resp.ToolCalls,
 		})
+		a.mu.Unlock()
 
-		// Execute each tool call
+		// Execute each tool call (outside lock — tool execution can be slow)
 		for _, tc := range resp.ToolCalls {
 			toolName := tc.Name
 			if tc.Function != nil {
@@ -188,11 +201,13 @@ func (a *Agent) Chat(ctx context.Context, userMessage string) (*ChatResponse, er
 			allToolCalls = append(allToolCalls, tc)
 
 			// Add tool result to conversation
+			a.mu.Lock()
 			a.messages = append(a.messages, providers.Message{
 				Role:       "tool",
 				Content:    result.ContentForLLM(),
 				ToolCallID: tc.ID,
 			})
+			a.mu.Unlock()
 		}
 	}
 

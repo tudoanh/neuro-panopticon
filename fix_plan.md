@@ -19,9 +19,10 @@
 - [x] All Go packages compile successfully
 
 ### System Dependencies Note
-Missing system packages (need sudo): `libgtk-3-dev`, `libwebkit2gtk-4.0-dev`
-These are required for `wails build` but not for Go compilation.
-Install with: `sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev`
+Required: `libgtk-3-dev`, `libwebkit2gtk-4.1-dev` (Ubuntu 24.04+)
+Install with: `sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev`
+Build with: `wails build -tags webkit2_41`
+Binary output: `build/bin/neuropanopticon` (~19MB)
 
 ## Phase 2: Backend Enhancement [COMPLETE]
 - [x] Add background scanner (`backend/scanner/`) - periodic system monitoring
@@ -39,11 +40,22 @@ Install with: `sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev`
 - [x] Build Chat/Audit view (message bubbles, tool call cards, inline code formatting, empty state with suggestions)
 - [x] Build Settings view (LLM backend toggle, cloud API key, security options, scan interval)
 
-## Phase 4: Integration & Polish [IN PROGRESS]
+## Phase 4: Integration & Polish [COMPLETE]
 - [x] IPC: Real-time tool execution indicators in chat (Wails EventsEmit, live tool cards in Chat)
-- [ ] Background monitoring with event notifications
-- [ ] Cross-platform testing
-- [ ] End-to-end build with `wails build`
+- [x] Background monitoring with event notifications
+- [x] Cross-platform testing
+- [x] End-to-end build with `wails build` (19MB binary, webkit2_41 tag for Ubuntu 24.04+)
+
+## Phase 5: Code Quality & Maintenance [IN PROGRESS]
+- [x] Fix agent concurrency bug: mutex held during entire LLM call (up to 2min), blocking Reset()
+  - Refactored Chat() to use fine-grained locking around message slice access only
+  - LLM calls and tool executions now run without holding the lock
+  - Added 3 agent tests: TestResetNotBlockedDuringChat, TestChatAddsMessages, TestResetClearsMessages
+- [ ] Populate NetworkIn/NetworkOut fields in SystemStatus (defined in models but never set)
+- [ ] Add config validation (LLM backend, temperature range, max_tokens bounds, scan interval)
+- [ ] Replace custom string utils in scanner.go (toLower, contains) with strings stdlib
+- [ ] Fix log file handle leak in backend/logging/logging.go (file opened but never closed)
+- [ ] Add negative/zero PID validation in sbom_inspector.go
 
 ## Architecture Notes
 - Using picoclaw v0.2.4 for tool registry and LLM provider interfaces
