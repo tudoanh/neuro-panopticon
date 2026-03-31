@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -64,11 +65,49 @@ func DefaultConfig() *AppConfig {
 	}
 }
 
+// Validate checks that all config values are within acceptable bounds.
+// It returns an error describing the first invalid field found.
+func (cfg *AppConfig) Validate() error {
+	switch cfg.LLM.Backend {
+	case "ollama", "cloud":
+		// valid
+	default:
+		return fmt.Errorf("invalid llm.backend %q: must be \"ollama\" or \"cloud\"", cfg.LLM.Backend)
+	}
+
+	if cfg.LLM.Backend == "ollama" && cfg.LLM.OllamaURL == "" {
+		return fmt.Errorf("llm.ollama_url must not be empty when backend is \"ollama\"")
+	}
+
+	if cfg.LLM.Backend == "cloud" && cfg.LLM.CloudAPIKey == "" {
+		return fmt.Errorf("llm.cloud_api_key is required when backend is \"cloud\"")
+	}
+
+	if cfg.LLM.Temperature < 0 || cfg.LLM.Temperature > 2 {
+		return fmt.Errorf("llm.temperature %.2f out of range [0, 2]", cfg.LLM.Temperature)
+	}
+
+	if cfg.LLM.MaxTokens < 1 || cfg.LLM.MaxTokens > 128000 {
+		return fmt.Errorf("llm.max_tokens %d out of range [1, 128000]", cfg.LLM.MaxTokens)
+	}
+
+	if cfg.Security.ScanIntervalSeconds < 10 {
+		return fmt.Errorf("security.scan_interval_seconds %d too low (minimum 10)", cfg.Security.ScanIntervalSeconds)
+	}
+
+	return nil
+}
+
 // ConfigDir returns the platform-appropriate config directory.
 func ConfigDir() string {
 	switch runtime.GOOS {
 	case "windows":
-		return filepath.Join(os.Getenv("APPDATA"), "NeuroPanopticon")
+		appData := os.Getenv("APPDATA")
+		if appData == "" {
+			home, _ := os.UserHomeDir()
+			appData = filepath.Join(home, "AppData", "Roaming")
+		}
+		return filepath.Join(appData, "NeuroPanopticon")
 	case "darwin":
 		home, _ := os.UserHomeDir()
 		return filepath.Join(home, "Library", "Application Support", "NeuroPanopticon")
@@ -96,11 +135,17 @@ func Load() (*AppConfig, error) {
 	if err := json.Unmarshal(data, cfg); err != nil {
 		return nil, err
 	}
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid config: %w", err)
+	}
 	return cfg, nil
 }
 
-// Save writes the config to disk.
+// Save writes the config to disk after validating it.
 func Save(cfg *AppConfig) error {
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
 	dir := ConfigDir()
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err

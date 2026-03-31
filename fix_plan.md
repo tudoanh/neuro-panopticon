@@ -52,7 +52,10 @@ Binary output: `build/bin/neuropanopticon` (~19MB)
   - LLM calls and tool executions now run without holding the lock
   - Added 3 agent tests: TestResetNotBlockedDuringChat, TestChatAddsMessages, TestResetClearsMessages
 - [ ] Populate NetworkIn/NetworkOut fields in SystemStatus (defined in models but never set)
-- [ ] Add config validation (LLM backend, temperature range, max_tokens bounds, scan interval)
+- [x] Add config validation (LLM backend, temperature range, max_tokens bounds, scan interval)
+  - Added Validate() method checking backend type, URL/key requirements, temperature [0,2], max_tokens [1,128000], scan interval >= 10
+  - Wired into Load() and Save() so invalid configs are rejected at both entry points
+  - Added 8 config validation tests with table-driven subtests
 - [ ] Replace custom string utils in scanner.go (toLower, contains) with strings stdlib
 - [ ] Fix log file handle leak in backend/logging/logging.go (file opened but never closed)
 - [ ] Add negative/zero PID validation in sbom_inspector.go
