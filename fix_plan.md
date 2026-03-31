@@ -46,12 +46,14 @@ Binary output: `build/bin/neuropanopticon` (~19MB)
 - [x] Cross-platform testing
 - [x] End-to-end build with `wails build` (19MB binary, webkit2_41 tag for Ubuntu 24.04+)
 
-## Phase 5: Code Quality & Maintenance [IN PROGRESS]
+## Phase 5: Code Quality & Maintenance [COMPLETE]
 - [x] Fix agent concurrency bug: mutex held during entire LLM call (up to 2min), blocking Reset()
   - Refactored Chat() to use fine-grained locking around message slice access only
   - LLM calls and tool executions now run without holding the lock
   - Added 3 agent tests: TestResetNotBlockedDuringChat, TestChatAddsMessages, TestResetClearsMessages
-- [ ] Populate NetworkIn/NetworkOut fields in SystemStatus (defined in models but never set)
+- [x] Populate NetworkIn/NetworkOut fields in SystemStatus (defined in models but never set)
+  - Added gopsutil net.IOCountersWithContext call in GetSystemStatus with pernic=false for aggregate totals
+  - Frontend types and Dashboard already wired to display these values
 - [x] Add config validation (LLM backend, temperature range, max_tokens bounds, scan interval)
   - Added Validate() method checking backend type, URL/key requirements, temperature [0,2], max_tokens [1,128000], scan interval >= 10
   - Wired into Load() and Save() so invalid configs are rejected at both entry points

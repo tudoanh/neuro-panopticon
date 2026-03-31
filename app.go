@@ -8,6 +8,7 @@ import (
 
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
+	psnet "github.com/shirou/gopsutil/v4/net"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"neuropanopticon/backend/agent"
@@ -119,6 +120,13 @@ func (a *App) GetSystemStatus() *models.SystemStatus {
 	if err == nil {
 		status.MemoryUsed = float64(vmem.Used) / (1024 * 1024 * 1024)
 		status.MemoryTotal = float64(vmem.Total) / (1024 * 1024 * 1024)
+	}
+
+	// Network I/O (aggregate across all interfaces)
+	ioCounters, err := psnet.IOCountersWithContext(a.ctx, false)
+	if err == nil && len(ioCounters) > 0 {
+		status.NetworkIn = ioCounters[0].BytesRecv
+		status.NetworkOut = ioCounters[0].BytesSent
 	}
 
 	// Real security score from background scanner
