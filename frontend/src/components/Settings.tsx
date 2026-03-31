@@ -8,14 +8,14 @@ const isWails = typeof window !== 'undefined' && 'go' in window;
 async function loadConfig(): Promise<AppConfig> {
   if (isWails) {
     const { GetConfig } = await import('../../wailsjs/go/main/App');
-    return GetConfig();
+    return GetConfig() as Promise<AppConfig>;
   }
   // Dev fallback
   return {
     llm: {
       backend: 'ollama',
-      ollama_url: 'http://localhost:11434',
-      ollama_model: 'llama3.2',
+      ollama_url: 'http://localhost:8999',
+      ollama_model: 'Qwen-3.5-9b',
       cloud_api_key: '',
       cloud_url: 'https://api.anthropic.com',
       cloud_model: 'claude-sonnet-4-6',
@@ -33,7 +33,7 @@ async function loadConfig(): Promise<AppConfig> {
 async function saveConfig(config: AppConfig): Promise<void> {
   if (isWails) {
     const { SaveConfig } = await import('../../wailsjs/go/main/App');
-    return SaveConfig(config);
+    return SaveConfig(config as any);
   }
 }
 
@@ -165,13 +165,13 @@ export function Settings() {
               label="Ollama URL"
               value={config.llm.ollama_url}
               onChange={(v) => updateLLM({ ollama_url: v })}
-              placeholder="http://localhost:11434"
+              placeholder="http://localhost:8999"
             />
             <InputField
               label="Model"
               value={config.llm.ollama_model}
               onChange={(v) => updateLLM({ ollama_model: v })}
-              placeholder="llama3.2"
+              placeholder="Qwen-3.5-9b"
             />
           </div>
         )}

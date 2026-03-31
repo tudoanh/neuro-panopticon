@@ -27,7 +27,7 @@ func createOllamaProvider(cfg *config.AppConfig) (providers.LLMProvider, string,
 	apiBase := cfg.LLM.OllamaURL + "/v1"
 	model := cfg.LLM.OllamaModel
 	if model == "" {
-		model = "llama3.2"
+		model = "Qwen-3.5-9b"
 	}
 
 	provider := providers.NewHTTPProvider(

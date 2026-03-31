@@ -23,7 +23,7 @@ interface LiveTool {
 async function sendMessage(message: string): Promise<{ content: string; tool_calls?: ToolCall[] }> {
   if (isWails) {
     const { SendMessage } = await import('../../wailsjs/go/main/App');
-    return SendMessage(message);
+    return SendMessage(message) as Promise<{ content: string; tool_calls?: ToolCall[] }>;
   }
   // Dev fallback — simulate a response
   await new Promise((r) => setTimeout(r, 1000));

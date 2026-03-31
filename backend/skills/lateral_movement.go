@@ -20,26 +20,52 @@ var SuspiciousParentChild = map[string][]string{
 	// Browsers spawning shells is suspicious
 	"chrome":  {"bash", "sh", "powershell", "cmd", "python", "perl"},
 	"firefox": {"bash", "sh", "powershell", "cmd", "python", "perl"},
-	// Office apps spawning shells
+	// Office apps spawning shells (Linux/macOS)
 	"libreoffice": {"bash", "sh", "powershell", "cmd", "python", "perl", "curl", "wget"},
 	"soffice":     {"bash", "sh", "powershell", "cmd", "python", "perl", "curl", "wget"},
+	// Office apps spawning shells (Windows)
+	"winword":  {"powershell", "cmd", "python", "perl", "curl", "certutil", "wscript", "cscript", "mshta"},
+	"excel":    {"powershell", "cmd", "python", "perl", "curl", "certutil", "wscript", "cscript", "mshta"},
+	"powerpnt": {"powershell", "cmd", "python", "perl", "curl", "certutil", "wscript", "cscript", "mshta"},
+	"outlook":  {"powershell", "cmd", "python", "perl", "curl", "certutil", "wscript", "cscript", "mshta"},
+	// macOS-specific apps
+	"preview": {"bash", "sh", "zsh", "python", "perl", "curl", "wget", "nc"},
+	"pages":   {"bash", "sh", "zsh", "python", "perl", "curl", "wget"},
 }
 
-// SuspiciousCommandPatterns are regex-like substrings that indicate lateral movement.
+// SuspiciousCommandPatterns are substrings that indicate lateral movement.
+// Includes both Unix and Windows variants for cross-platform detection.
 var SuspiciousCommandPatterns = []string{
-	"ping -c",              // subnet scanning
-	"nmap",                 // port scanning
-	"nc -l",                // netcat listener
-	"curl http",            // downloading payloads
-	"wget http",            // downloading payloads
-	"/etc/passwd",          // credential access
-	"/etc/shadow",          // credential access
-	"base64 -d",            // encoded payloads
+	// Network reconnaissance
+	"ping -c",   // Linux/macOS subnet scanning
+	"ping -n",   // Windows subnet scanning
+	"nmap",      // port scanning
+	"nc -l",     // netcat listener
+	"ncat -l",   // ncat listener
+	"curl http",  // downloading payloads
+	"wget http",  // downloading payloads
+	"certutil -urlcache", // Windows payload download
+	"bitsadmin /transfer", // Windows payload download
+
+	// Credential access
+	"/etc/passwd",          // Linux credential file
+	"/etc/shadow",          // Linux credential file
+	"sam /system",          // Windows SAM database
+	"mimikatz",             // credential dumping tool
+	"sekurlsa",             // mimikatz module
+
+	// Persistence / execution
+	"base64 -d",            // Unix encoded payloads
+	"certutil -decode",     // Windows base64 decode
 	"chmod +x",             // making downloaded files executable
 	"ssh -o StrictHost",    // SSH with host key check disabled
 	".ssh/authorized_keys", // SSH key injection
-	"iptables -F",          // firewall flush
-	"ufw disable",          // firewall disable
+
+	// Firewall manipulation
+	"iptables -F",          // Linux firewall flush
+	"ufw disable",          // Ubuntu firewall disable
+	"netsh advfirewall set", // Windows firewall manipulation
+	"pfctl -d",             // macOS firewall disable
 }
 
 type LateralMovement struct {

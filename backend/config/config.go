@@ -50,8 +50,8 @@ func DefaultConfig() *AppConfig {
 	return &AppConfig{
 		LLM: LLMConfig{
 			Backend:     "ollama",
-			OllamaURL:   "http://localhost:11434",
-			OllamaModel: "llama3.2",
+			OllamaURL:   "http://localhost:8999",
+			OllamaModel: "Qwen-3.5-9b",
 			CloudURL:    "https://api.anthropic.com",
 			CloudModel:  "claude-sonnet-4-6",
 			MaxTokens:   4096,

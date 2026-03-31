@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Cpu, HardDrive, AlertTriangle, ShieldCheck, ShieldAlert, Info, Wifi } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
+import { Cpu, HardDrive, AlertTriangle, ShieldCheck, ShieldAlert, Info, Wifi, X, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ScoreGauge } from './ScoreGauge';
 import type { SystemStatus, Finding, Severity } from '@/types/models';
@@ -10,7 +10,7 @@ const isWails = typeof window !== 'undefined' && 'go' in window;
 async function getSystemStatus(): Promise<SystemStatus> {
   if (isWails) {
     const { GetSystemStatus } = await import('../../wailsjs/go/main/App');
-    return GetSystemStatus();
+    return GetSystemStatus() as Promise<SystemStatus>;
   }
   // Dev fallback
   return {
@@ -28,7 +28,7 @@ async function getSystemStatus(): Promise<SystemStatus> {
 async function getFindings(): Promise<Finding[]> {
   if (isWails) {
     const { GetFindings } = await import('../../wailsjs/go/main/App');
-    return GetFindings() ?? [];
+    return (GetFindings() ?? []) as Promise<Finding[]>;
   }
   return [
     { id: 'net-port-22', title: 'SSH listening on port 22', description: 'sshd is accepting connections.', severity: 'medium', category: 'network', source: 'scan_network', timestamp: new Date().toISOString() },
@@ -53,19 +53,76 @@ const severityBorder: Record<Severity, string> = {
   info: 'border-l-severity-info',
 };
 
+interface ScanCompleteEvent {
+  score: number;
+  finding_count: number;
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+  duration_ms: number;
+}
+
+interface Notification {
+  id: string;
+  message: string;
+  severity: 'critical' | 'high' | 'info';
+  timestamp: Date;
+}
+
 export function Dashboard() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [findings, setFindings] = useState<Finding[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  useEffect(() => {
-    const poll = () => {
-      getSystemStatus().then(setStatus);
-      getFindings().then(setFindings);
-    };
-    poll();
-    const interval = setInterval(poll, 5000);
-    return () => clearInterval(interval);
+  const refresh = useCallback(() => {
+    getSystemStatus().then(setStatus);
+    getFindings().then(setFindings);
   }, []);
+
+  const dismissNotification = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  // Listen for real-time scanner:complete events from the Go backend
+  useEffect(() => {
+    if (!isWails) return;
+    let cleanup: (() => void) | undefined;
+
+    import('../../wailsjs/runtime/runtime').then(({ EventsOn, EventsOff }) => {
+      EventsOn('scanner:complete', (evt: ScanCompleteEvent) => {
+        // Immediately refresh dashboard data
+        refresh();
+
+        // Show notification for new critical/high findings
+        if (evt.critical > 0 || evt.high > 0) {
+          const parts: string[] = [];
+          if (evt.critical > 0) parts.push(`${evt.critical} critical`);
+          if (evt.high > 0) parts.push(`${evt.high} high`);
+
+          setNotifications((prev) => [
+            ...prev,
+            {
+              id: crypto.randomUUID(),
+              message: `Scan complete: ${parts.join(', ')} severity finding${evt.critical + evt.high > 1 ? 's' : ''} detected`,
+              severity: evt.critical > 0 ? 'critical' : 'high',
+              timestamp: new Date(),
+            },
+          ]);
+        }
+      });
+      cleanup = () => EventsOff('scanner:complete');
+    });
+
+    return () => cleanup?.();
+  }, [refresh]);
+
+  // Fallback polling (longer interval since events handle immediate updates)
+  useEffect(() => {
+    refresh();
+    const interval = setInterval(refresh, isWails ? 30000 : 5000);
+    return () => clearInterval(interval);
+  }, [refresh]);
 
   if (!status) {
     return (
@@ -101,6 +158,29 @@ export function Dashboard() {
           </span>
         </div>
       </div>
+
+      {/* Notification banners */}
+      {notifications.map((n) => (
+        <div
+          key={n.id}
+          className={cn(
+            'flex items-center gap-3 px-4 py-3 rounded-lg border animate-in fade-in slide-in-from-top-2',
+            n.severity === 'critical'
+              ? 'bg-severity-critical/10 border-severity-critical/30 text-severity-critical'
+              : 'bg-severity-high/10 border-severity-high/30 text-severity-high',
+          )}
+        >
+          <Bell size={14} className="shrink-0" />
+          <span className="text-sm flex-1">{n.message}</span>
+          <span className="text-xs opacity-60">{n.timestamp.toLocaleTimeString()}</span>
+          <button
+            onClick={() => dismissNotification(n.id)}
+            className="p-0.5 rounded hover:bg-white/10 transition-colors"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      ))}
 
       {/* Score + Metrics Row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

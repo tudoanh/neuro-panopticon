@@ -1,0 +1,1 @@
+function e(e,t,n){return window.runtime.EventsOnMultiple(e,t,n)}function t(t,n){return e(t,n,-1)}function n(e,...t){return window.runtime.EventsOff(e,...t)}export{n as EventsOff,t as EventsOn};

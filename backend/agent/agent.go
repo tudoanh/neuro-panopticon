@@ -148,6 +148,23 @@ func (a *Agent) Chat(ctx context.Context, userMessage string) (*ChatResponse, er
 			}, nil
 		}
 
+		// Normalize tool calls for llama-cpp compatibility:
+		// picoclaw stores Name/Arguments as json:"-" fields, so they
+		// don't serialize. Ensure Type and Function are always set.
+		for i := range resp.ToolCalls {
+			tc := &resp.ToolCalls[i]
+			if tc.Type == "" {
+				tc.Type = "function"
+			}
+			if tc.Function == nil {
+				argsJSON, _ := json.Marshal(tc.Arguments)
+				tc.Function = &providers.FunctionCall{
+					Name:      tc.Name,
+					Arguments: string(argsJSON),
+				}
+			}
+		}
+
 		// Add assistant message with tool calls
 		a.mu.Lock()
 		a.messages = append(a.messages, providers.Message{
