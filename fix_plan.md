@@ -23,13 +23,13 @@ Missing system packages (need sudo): `libgtk-3-dev`, `libwebkit2gtk-4.0-dev`
 These are required for `wails build` but not for Go compilation.
 Install with: `sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev`
 
-## Phase 2: Backend Enhancement [IN PROGRESS]
+## Phase 2: Backend Enhancement [COMPLETE]
 - [x] Add background scanner (`backend/scanner/`) - periodic system monitoring
 - [x] Implement security scoring algorithm (`backend/scanner/scoring.go`)
 - [x] Wire scanner into app.go with real SecurityScore + GetFindings endpoint
 - [x] Write tests for scoring algorithm (7 tests passing)
 - [x] Add proper error handling and logging (`backend/logging/`, slog throughout app/scanner/agent)
-- [ ] Write tests for skills (scan_network, lateral_movement)
+- [x] Write tests for skills (scan_network: 9 tests, lateral_movement: 5 tests)
 
 ## Phase 3: Frontend Implementation
 - [ ] Set up TailwindCSS + shadcn/ui
