@@ -8,6 +8,7 @@ import (
 
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/mem"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"neuropanopticon/backend/agent"
 	"neuropanopticon/backend/config"
@@ -51,6 +52,10 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 	a.agent = ag
+	// Wire Wails event emitter for real-time tool indicators
+	a.agent.SetEmitter(func(eventName string, data any) {
+		wailsRuntime.EventsEmit(a.ctx, eventName, data)
+	})
 	slog.Info("agent initialized", "backend", cfg.LLM.Backend)
 
 	// Start background security scanner
@@ -164,6 +169,9 @@ func (a *App) SaveConfig(cfg *config.AppConfig) error {
 		return fmt.Errorf("failed to reinitialize agent: %w", err)
 	}
 	a.agent = ag
+	a.agent.SetEmitter(func(eventName string, data any) {
+		wailsRuntime.EventsEmit(a.ctx, eventName, data)
+	})
 	slog.Info("agent reinitialized after config change")
 	return nil
 }

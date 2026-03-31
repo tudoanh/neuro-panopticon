@@ -39,8 +39,8 @@ Install with: `sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev`
 - [x] Build Chat/Audit view (message bubbles, tool call cards, inline code formatting, empty state with suggestions)
 - [x] Build Settings view (LLM backend toggle, cloud API key, security options, scan interval)
 
-## Phase 4: Integration & Polish
-- [ ] IPC: Real-time tool execution indicators in chat
+## Phase 4: Integration & Polish [IN PROGRESS]
+- [x] IPC: Real-time tool execution indicators in chat (Wails EventsEmit, live tool cards in Chat)
 - [ ] Background monitoring with event notifications
 - [ ] Cross-platform testing
 - [ ] End-to-end build with `wails build`

@@ -28,6 +28,17 @@ Available tools:
 When reporting findings, use severity levels: critical, high, medium, low, info.
 Always explain WHY something is a risk and what the blast radius could be.`
 
+// ToolEvent represents a real-time tool execution event sent to the frontend.
+type ToolEvent struct {
+	Phase    string `json:"phase"`    // "start" or "complete"
+	ToolName string `json:"tool"`     // tool name
+	Status   string `json:"status"`   // "" for start, "success" or "error" for complete
+	Duration int64  `json:"duration"` // ms, only set on complete
+}
+
+// EventEmitter is a callback for emitting real-time events to the frontend.
+type EventEmitter func(eventName string, data any)
+
 // Agent orchestrates the AI agent loop for NeuroPanopticon.
 type Agent struct {
 	provider providers.LLMProvider
@@ -40,6 +51,20 @@ type Agent struct {
 	messages []providers.Message
 
 	maxIterations int
+
+	// Optional event emitter for real-time tool indicators
+	emitter EventEmitter
+}
+
+// SetEmitter sets the event callback for real-time tool execution events.
+func (a *Agent) SetEmitter(fn EventEmitter) {
+	a.emitter = fn
+}
+
+func (a *Agent) emit(eventName string, data any) {
+	if a.emitter != nil {
+		a.emitter(eventName, data)
+	}
 }
 
 // New creates a new Agent with the given config.
@@ -133,6 +158,9 @@ func (a *Agent) Chat(ctx context.Context, userMessage string) (*ChatResponse, er
 				json.Unmarshal([]byte(tc.Function.Arguments), &args)
 			}
 
+			// Emit tool:start event
+			a.emit("tool:event", ToolEvent{Phase: "start", ToolName: toolName})
+
 			start := time.Now()
 			result := a.tools.Execute(ctx, toolName, args)
 			duration := time.Since(start)
@@ -144,6 +172,9 @@ func (a *Agent) Chat(ctx context.Context, userMessage string) (*ChatResponse, er
 			} else {
 				slog.Info("tool executed", "tool", toolName, "duration", duration)
 			}
+
+			// Emit tool:complete event
+			a.emit("tool:event", ToolEvent{Phase: "complete", ToolName: toolName, Status: status, Duration: duration.Milliseconds()})
 
 			tc := models.ToolCall{
 				ID:       tc.ID,

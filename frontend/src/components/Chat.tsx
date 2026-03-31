@@ -1,10 +1,24 @@
-import { useState, useRef, useEffect } from 'react';
-import { Send, RotateCcw, Bot, User, Loader2 } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Send, RotateCcw, Bot, User, Loader2, Wrench, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ToolCallCard } from './ToolCallCard';
 import type { ToolCall } from '@/types/models';
 
 const isWails = typeof window !== 'undefined' && 'go' in window;
+
+interface ToolEvent {
+  phase: 'start' | 'complete';
+  tool: string;
+  status: string;
+  duration: number;
+}
+
+interface LiveTool {
+  name: string;
+  startedAt: number;
+  status?: string;
+  duration?: number;
+}
 
 async function sendMessage(message: string): Promise<{ content: string; tool_calls?: ToolCall[] }> {
   if (isWails) {
@@ -40,15 +54,45 @@ export function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [liveTools, setLiveTools] = useState<LiveTool[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-scroll on new messages
+  // Listen for real-time tool events from the Go backend
+  useEffect(() => {
+    if (!isWails) return;
+    let cleanup: (() => void) | undefined;
+
+    import('../../wailsjs/runtime/runtime').then(({ EventsOn, EventsOff }) => {
+      EventsOn('tool:event', (evt: ToolEvent) => {
+        if (evt.phase === 'start') {
+          setLiveTools((prev) => [...prev, { name: evt.tool, startedAt: Date.now() }]);
+        } else if (evt.phase === 'complete') {
+          setLiveTools((prev) =>
+            prev.map((t) =>
+              t.name === evt.tool && !t.status
+                ? { ...t, status: evt.status, duration: evt.duration }
+                : t
+            )
+          );
+          // Remove completed tools after a brief display
+          setTimeout(() => {
+            setLiveTools((prev) => prev.filter((t) => t.name !== evt.tool || !t.status));
+          }, 1500);
+        }
+      });
+      cleanup = () => EventsOff('tool:event');
+    });
+
+    return () => cleanup?.();
+  }, []);
+
+  // Auto-scroll on new messages or live tool changes
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages, loading]);
+  }, [messages, loading, liveTools]);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -85,6 +129,7 @@ export function Chat() {
       setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setLoading(false);
+      setLiveTools([]);
       inputRef.current?.focus();
     }
   };
@@ -130,9 +175,17 @@ export function Chat() {
         ))}
 
         {loading && (
-          <div className="flex items-center gap-2 text-text-muted text-sm py-2">
-            <Loader2 size={14} className="animate-spin text-neon-cyan" />
-            <span>Analyzing...</span>
+          <div className="space-y-2 py-2">
+            {liveTools.length > 0 ? (
+              liveTools.map((lt, i) => (
+                <LiveToolIndicator key={`${lt.name}-${i}`} tool={lt} />
+              ))
+            ) : (
+              <div className="flex items-center gap-2 text-text-muted text-sm">
+                <Loader2 size={14} className="animate-spin text-neon-cyan" />
+                <span>Thinking...</span>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -249,6 +302,43 @@ function FormattedContent({ text }: { text: string }) {
         return <span key={i}>{part}</span>;
       })}
     </>
+  );
+}
+
+const toolDisplayNames: Record<string, string> = {
+  scan_network: 'Scanning Network',
+  detect_lateral_movement: 'Detecting Lateral Movement',
+  analyze_blast_radius: 'Analyzing Blast Radius',
+  inspect_sbom: 'Inspecting SBOM',
+  remediate: 'Executing Remediation',
+};
+
+function LiveToolIndicator({ tool }: { tool: LiveTool }) {
+  const displayName = toolDisplayNames[tool.name] ?? tool.name;
+  const isComplete = !!tool.status;
+
+  return (
+    <div className={cn(
+      'flex items-center gap-2 text-sm px-3 py-2 rounded-lg border transition-all',
+      isComplete
+        ? tool.status === 'success'
+          ? 'border-neon-green/20 bg-neon-green/5 text-neon-green'
+          : 'border-severity-critical/20 bg-severity-critical/5 text-severity-critical'
+        : 'border-neon-cyan/20 bg-neon-cyan/5 text-neon-cyan',
+    )}>
+      {isComplete ? (
+        tool.status === 'success'
+          ? <CheckCircle2 size={14} />
+          : <XCircle size={14} />
+      ) : (
+        <Loader2 size={14} className="animate-spin" />
+      )}
+      <Wrench size={12} />
+      <span className="font-medium">{displayName}</span>
+      {isComplete && tool.duration != null && (
+        <span className="text-xs opacity-70 ml-auto">{tool.duration}ms</span>
+      )}
+    </div>
   );
 }
 
