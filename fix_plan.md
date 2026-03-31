@@ -62,7 +62,9 @@ Binary output: `build/bin/neuropanopticon` (~19MB)
 - [x] Fix log file handle leak in backend/logging/logging.go (file opened but never closed)
   - Setup() now returns a close function alongside the logger
   - App stores and calls logClose in shutdown() to properly release the file descriptor
-- [ ] Add negative/zero PID validation in sbom_inspector.go
+- [x] Add negative/zero PID validation in sbom_inspector.go
+  - Returns clear error for pid <= 0 before attempting process lookup
+  - Added 5 tests: zero, negative, missing, wrong type, and metadata
 
 ## Architecture Notes
 - Using picoclaw v0.2.4 for tool registry and LLM provider interfaces

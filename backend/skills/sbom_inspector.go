@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -55,6 +56,9 @@ func (t *SBOMInspectorTool) Execute(ctx context.Context, args map[string]any) *t
 		return tools.ErrorResult("pid parameter is required and must be a number")
 	}
 	pid := int32(pidFloat)
+	if pid <= 0 {
+		return tools.ErrorResult(fmt.Sprintf("invalid pid %d: must be a positive integer", pid))
+	}
 
 	p, err := process.NewProcess(pid)
 	if err != nil {
@@ -87,6 +91,7 @@ func getLinuxLibraries(ctx context.Context, pid int32) []SBOMEntry {
 	mapsPath := fmt.Sprintf("/proc/%d/maps", pid)
 	data, err := os.ReadFile(mapsPath)
 	if err != nil {
+		slog.Warn("failed to read proc maps", "path", mapsPath, "error", err)
 		return libs
 	}
 
@@ -148,6 +153,7 @@ func getDarwinLibraries(ctx context.Context, pid int32) []SBOMEntry {
 	cmd := exec.CommandContext(ctx, "vmmap", fmt.Sprintf("%d", pid))
 	output, err := cmd.Output()
 	if err != nil {
+		slog.Warn("vmmap failed for SBOM inspection", "pid", pid, "error", err)
 		return libs
 	}
 
@@ -176,6 +182,7 @@ func getWindowsLibraries(ctx context.Context, pid int32) []SBOMEntry {
 	cmd := exec.CommandContext(ctx, "tasklist", "/M", "/FI", fmt.Sprintf("PID eq %d", pid))
 	output, err := cmd.Output()
 	if err != nil {
+		slog.Warn("tasklist failed for SBOM inspection", "pid", pid, "error", err)
 		return libs
 	}
 
