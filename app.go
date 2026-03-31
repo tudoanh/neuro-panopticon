@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
@@ -10,6 +11,7 @@ import (
 
 	"neuropanopticon/backend/agent"
 	"neuropanopticon/backend/config"
+	"neuropanopticon/backend/logging"
 	"neuropanopticon/backend/models"
 	"neuropanopticon/backend/scanner"
 )
@@ -32,19 +34,24 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
+	logging.Setup()
+	slog.Info("NeuroPanopticon starting")
+
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Printf("Warning: failed to load config, using defaults: %v\n", err)
+		slog.Warn("failed to load config, using defaults", "error", err)
 		cfg = config.DefaultConfig()
 	}
 	a.cfg = cfg
+	slog.Info("config loaded", "backend", cfg.LLM.Backend, "scan_interval", cfg.Security.ScanIntervalSeconds)
 
 	ag, err := agent.New(cfg)
 	if err != nil {
-		fmt.Printf("Warning: failed to initialize agent: %v\n", err)
+		slog.Error("failed to initialize agent", "error", err)
 		return
 	}
 	a.agent = ag
+	slog.Info("agent initialized", "backend", cfg.LLM.Backend)
 
 	// Start background security scanner
 	a.scanner = scanner.New(cfg.Security.ScanIntervalSeconds)
@@ -65,10 +72,12 @@ func (a *App) SendMessage(message string) *agent.ChatResponse {
 
 	resp, err := a.agent.Chat(ctx, message)
 	if err != nil {
+		slog.Error("agent chat failed", "error", err)
 		return &agent.ChatResponse{
 			Content: fmt.Sprintf("Error: %v", err),
 		}
 	}
+	slog.Info("chat response", "tool_calls", len(resp.ToolCalls))
 	return resp
 }
 
@@ -127,6 +136,7 @@ func (a *App) GetFindings() []models.Finding {
 
 // shutdown is called when the Wails app is closing.
 func (a *App) shutdown(ctx context.Context) {
+	slog.Info("NeuroPanopticon shutting down")
 	if a.scanner != nil {
 		a.scanner.Stop()
 	}
@@ -146,6 +156,7 @@ func (a *App) SaveConfig(cfg *config.AppConfig) error {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 	a.cfg = cfg
+	slog.Info("config saved", "backend", cfg.LLM.Backend)
 
 	// Reinitialize agent with new config
 	ag, err := agent.New(cfg)
@@ -153,5 +164,6 @@ func (a *App) SaveConfig(cfg *config.AppConfig) error {
 		return fmt.Errorf("failed to reinitialize agent: %w", err)
 	}
 	a.agent = ag
+	slog.Info("agent reinitialized after config change")
 	return nil
 }

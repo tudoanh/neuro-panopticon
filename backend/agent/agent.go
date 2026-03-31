@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -95,6 +96,7 @@ func (a *Agent) Chat(ctx context.Context, userMessage string) (*ChatResponse, er
 			"max_tokens":  a.cfg.LLM.MaxTokens,
 		})
 		if err != nil {
+			slog.Error("LLM chat request failed", "model", a.model, "iteration", i, "error", err)
 			return nil, fmt.Errorf("LLM chat error: %w", err)
 		}
 
@@ -138,6 +140,9 @@ func (a *Agent) Chat(ctx context.Context, userMessage string) (*ChatResponse, er
 			status := "success"
 			if result.IsError {
 				status = "error"
+				slog.Warn("tool execution failed", "tool", toolName, "duration", duration, "error", result.ContentForLLM())
+			} else {
+				slog.Info("tool executed", "tool", toolName, "duration", duration)
 			}
 
 			tc := models.ToolCall{
@@ -160,6 +165,7 @@ func (a *Agent) Chat(ctx context.Context, userMessage string) (*ChatResponse, er
 		}
 	}
 
+	slog.Warn("agent reached max iterations", "max", a.maxIterations, "tool_calls", len(allToolCalls))
 	return &ChatResponse{
 		Content:   "I reached the maximum number of tool call iterations. Please try a more specific request.",
 		ToolCalls: allToolCalls,

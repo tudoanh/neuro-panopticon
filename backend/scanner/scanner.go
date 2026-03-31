@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -47,6 +48,8 @@ func New(intervalSeconds int) *Scanner {
 func (s *Scanner) Start(ctx context.Context) {
 	ctx, s.cancel = context.WithCancel(ctx)
 
+	slog.Info("scanner starting", "interval", s.interval)
+
 	go func() {
 		defer close(s.done)
 
@@ -59,6 +62,7 @@ func (s *Scanner) Start(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
+				slog.Info("scanner stopped")
 				return
 			case <-ticker.C:
 				s.runScan(ctx)
@@ -101,19 +105,21 @@ func (s *Scanner) LastScan() time.Time {
 // runScan performs one full scan cycle: network scan + lateral movement detection,
 // then computes the security score from the aggregated findings.
 func (s *Scanner) runScan(ctx context.Context) {
+	start := time.Now()
+	slog.Debug("scan cycle starting")
+
 	var findings []models.Finding
-	now := time.Now()
 
 	// 1. Network scan — check for risky listening ports
-	netFindings := s.scanNetwork(ctx, now)
+	netFindings := s.scanNetwork(ctx, start)
 	findings = append(findings, netFindings...)
 
 	// 2. Lateral movement detection — check process tree
-	lmFindings := s.detectLateralMovement(ctx, now)
+	lmFindings := s.detectLateralMovement(ctx, start)
 	findings = append(findings, lmFindings...)
 
 	// 3. Blast radius context — exposed ports on all interfaces
-	brFindings := s.checkBlastRadius(ctx, now)
+	brFindings := s.checkBlastRadius(ctx, start)
 	findings = append(findings, brFindings...)
 
 	// Compute score
@@ -122,14 +128,24 @@ func (s *Scanner) runScan(ctx context.Context) {
 	s.mu.Lock()
 	s.findings = findings
 	s.score = score
-	s.lastScan = now
+	s.lastScan = start
 	s.mu.Unlock()
+
+	slog.Info("scan cycle complete",
+		"duration", time.Since(start),
+		"findings", len(findings),
+		"score", score.Score,
+		"critical", score.Critical,
+		"high", score.High,
+		"medium", score.Medium,
+	)
 }
 
 // scanNetwork checks listening ports and flags risky ones as findings.
 func (s *Scanner) scanNetwork(ctx context.Context, ts time.Time) []models.Finding {
 	connections, err := net.ConnectionsWithContext(ctx, "all")
 	if err != nil {
+		slog.Error("network scan failed", "error", err)
 		return nil
 	}
 
@@ -178,6 +194,7 @@ func (s *Scanner) scanNetwork(ctx context.Context, ts time.Time) []models.Findin
 func (s *Scanner) detectLateralMovement(ctx context.Context, ts time.Time) []models.Finding {
 	procs, err := process.ProcessesWithContext(ctx)
 	if err != nil {
+		slog.Error("lateral movement scan failed", "error", err)
 		return nil
 	}
 
@@ -245,6 +262,7 @@ func (s *Scanner) detectLateralMovement(ctx context.Context, ts time.Time) []mod
 func (s *Scanner) checkBlastRadius(ctx context.Context, ts time.Time) []models.Finding {
 	connections, err := net.ConnectionsWithContext(ctx, "all")
 	if err != nil {
+		slog.Error("blast radius scan failed", "error", err)
 		return nil
 	}
 

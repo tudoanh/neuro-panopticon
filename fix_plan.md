@@ -28,7 +28,7 @@ Install with: `sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev`
 - [x] Implement security scoring algorithm (`backend/scanner/scoring.go`)
 - [x] Wire scanner into app.go with real SecurityScore + GetFindings endpoint
 - [x] Write tests for scoring algorithm (7 tests passing)
-- [ ] Add proper error handling and logging
+- [x] Add proper error handling and logging (`backend/logging/`, slog throughout app/scanner/agent)
 - [ ] Write tests for skills (scan_network, lateral_movement)
 
 ## Phase 3: Frontend Implementation
