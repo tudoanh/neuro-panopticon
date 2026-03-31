@@ -59,7 +59,9 @@ Binary output: `build/bin/neuropanopticon` (~19MB)
 - [x] Replace custom string utils in scanner.go (toLower, contains) with strings stdlib
   - Removed toLower(), contains(), searchString() — replaced with strings.ToLower/strings.Contains
   - Kept sanitizeID() (no stdlib equivalent)
-- [ ] Fix log file handle leak in backend/logging/logging.go (file opened but never closed)
+- [x] Fix log file handle leak in backend/logging/logging.go (file opened but never closed)
+  - Setup() now returns a close function alongside the logger
+  - App stores and calls logClose in shutdown() to properly release the file descriptor
 - [ ] Add negative/zero PID validation in sbom_inspector.go
 
 ## Architecture Notes

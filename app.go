@@ -20,10 +20,11 @@ import (
 // App struct serves as the bridge between the Go backend and the React frontend.
 // All exported methods are automatically bound to the Wails runtime.
 type App struct {
-	ctx     context.Context
-	agent   *agent.Agent
-	cfg     *config.AppConfig
-	scanner *scanner.Scanner
+	ctx      context.Context
+	agent    *agent.Agent
+	cfg      *config.AppConfig
+	scanner  *scanner.Scanner
+	logClose func()
 }
 
 // NewApp creates a new App application struct.
@@ -35,7 +36,7 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	logging.Setup()
+	_, a.logClose = logging.Setup()
 	slog.Info("NeuroPanopticon starting")
 
 	cfg, err := config.Load()
@@ -60,6 +61,9 @@ func (a *App) startup(ctx context.Context) {
 
 	// Start background security scanner
 	a.scanner = scanner.New(cfg.Security.ScanIntervalSeconds)
+	a.scanner.SetEmitter(func(eventName string, data any) {
+		wailsRuntime.EventsEmit(a.ctx, eventName, data)
+	})
 	a.scanner.Start(ctx)
 }
 
@@ -144,6 +148,9 @@ func (a *App) shutdown(ctx context.Context) {
 	slog.Info("NeuroPanopticon shutting down")
 	if a.scanner != nil {
 		a.scanner.Stop()
+	}
+	if a.logClose != nil {
+		a.logClose()
 	}
 }
 
