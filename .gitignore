@@ -19,6 +19,9 @@
 .ralph/docs/generated/*
 !.ralph/docs/generated/.gitkeep
 
+# Secrets
+.env
+
 # General logs
 *.log
 
