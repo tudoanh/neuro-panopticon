@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+/* === NeuroPanopticon Cyberpunk Theme === */
+@theme {
+  --color-bg-primary: #0a0a14;
+  --color-bg-secondary: #12121f;
+  --color-bg-card: #1a1a2e;
+  --color-bg-card-hover: #222240;
+
+  --color-neon-cyan: #00f0ff;
+  --color-neon-magenta: #ff00c8;
+  --color-neon-green: #39ff14;
+  --color-neon-amber: #ffab00;
+  --color-neon-red: #ff3d3d;
+
+  --color-text-primary: #e0e0f0;
+  --color-text-secondary: #8888a8;
+  --color-text-muted: #555577;
+
+  --color-border-default: #2a2a44;
+  --color-border-active: #00f0ff33;
+
+  --color-severity-critical: #ff3d3d;
+  --color-severity-high: #ff6b35;
+  --color-severity-medium: #ffab00;
+  --color-severity-low: #39ff14;
+  --color-severity-info: #00f0ff;
+}
+
+/* Base styles */
+html {
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+body {
+  margin: 0;
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-default);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-neon-cyan);
+}
+
+/* Neon glow utility */
+.glow-cyan {
+  box-shadow: 0 0 10px var(--color-neon-cyan), 0 0 20px #00f0ff44;
+}
+.glow-magenta {
+  box-shadow: 0 0 10px var(--color-neon-magenta), 0 0 20px #ff00c844;
+}
+.glow-text-cyan {
+  text-shadow: 0 0 8px var(--color-neon-cyan);
+}

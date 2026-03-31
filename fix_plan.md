@@ -31,13 +31,13 @@ Install with: `sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev`
 - [x] Add proper error handling and logging (`backend/logging/`, slog throughout app/scanner/agent)
 - [x] Write tests for skills (scan_network: 9 tests, lateral_movement: 5 tests)
 
-## Phase 3: Frontend Implementation
-- [ ] Set up TailwindCSS + shadcn/ui
-- [ ] Build Dashboard view (security score, system metrics)
+## Phase 3: Frontend Implementation [IN PROGRESS]
+- [x] Set up TailwindCSS v4 + shadcn/ui utilities (Vite plugin, cn(), CVA, lucide-react)
+- [x] Cyberpunk dark theme with neon accents (`src/index.css` theme tokens)
+- [x] Generate Wails bindings for frontend TypeScript (manual bindings matching Go API)
+- [x] Build Dashboard view (security score gauge, finding summary, system metrics, findings list)
 - [ ] Build Chat/Audit view (message interface with tool call rendering)
 - [ ] Build Settings view (LLM backend toggle, license key)
-- [ ] Cyberpunk dark theme with neon accents
-- [ ] Generate Wails bindings for frontend TypeScript
 
 ## Phase 4: Integration & Polish
 - [ ] IPC: Real-time tool execution indicators in chat

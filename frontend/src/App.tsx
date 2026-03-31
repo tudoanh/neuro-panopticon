@@ -1,28 +1,28 @@
-import {useState} from 'react';
-import logo from './assets/images/logo-universal.png';
-import './App.css';
-import {Greet} from "../wailsjs/go/main/App";
+import { useState } from 'react';
+import { Layout, type View } from '@/components/Layout';
+import { Dashboard } from '@/components/Dashboard';
 
 function App() {
-    const [resultText, setResultText] = useState("Please enter your name below 👇");
-    const [name, setName] = useState('');
-    const updateName = (e: any) => setName(e.target.value);
-    const updateResultText = (result: string) => setResultText(result);
+  const [view, setView] = useState<View>('dashboard');
 
-    function greet() {
-        Greet(name).then(updateResultText);
-    }
-
-    return (
-        <div id="App">
-            <img src={logo} id="logo" alt="logo"/>
-            <div id="result" className="result">{resultText}</div>
-            <div id="input" className="input-box">
-                <input id="name" className="input" onChange={updateName} autoComplete="off" name="input" type="text"/>
-                <button className="btn" onClick={greet}>Greet</button>
-            </div>
-        </div>
-    )
+  return (
+    <Layout currentView={view} onNavigate={setView}>
+      {view === 'dashboard' && <Dashboard />}
+      {view === 'chat' && <PlaceholderView title="Chat" description="AI security chat interface coming soon." />}
+      {view === 'settings' && <PlaceholderView title="Settings" description="LLM backend configuration coming soon." />}
+    </Layout>
+  );
 }
 
-export default App
+function PlaceholderView({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="flex items-center justify-center h-full">
+      <div className="text-center">
+        <h2 className="text-lg font-bold text-text-secondary">{title}</h2>
+        <p className="text-sm text-text-muted mt-2">{description}</p>
+      </div>
+    </div>
+  );
+}
+
+export default App;
