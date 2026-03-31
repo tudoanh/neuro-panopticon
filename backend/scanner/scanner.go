@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +16,20 @@ import (
 	"neuropanopticon/backend/skills"
 )
 
+// EventEmitter is a callback for emitting real-time events to the frontend.
+type EventEmitter func(eventName string, data any)
+
+// ScanCompleteEvent is emitted after each scan cycle completes.
+type ScanCompleteEvent struct {
+	Score        int   `json:"score"`
+	FindingCount int   `json:"finding_count"`
+	Critical     int   `json:"critical"`
+	High         int   `json:"high"`
+	Medium       int   `json:"medium"`
+	Low          int   `json:"low"`
+	DurationMs   int64 `json:"duration_ms"`
+}
+
 // Scanner runs periodic background security scans and maintains the current security posture.
 type Scanner struct {
 	mu sync.RWMutex
@@ -24,8 +39,9 @@ type Scanner struct {
 	findings []models.Finding
 	lastScan time.Time
 
-	cancel context.CancelFunc
-	done   chan struct{}
+	cancel  context.CancelFunc
+	done    chan struct{}
+	emitter EventEmitter
 }
 
 // New creates a new background Scanner with the given scan interval.
@@ -95,6 +111,17 @@ func (s *Scanner) Findings() []models.Finding {
 	return dst
 }
 
+// SetEmitter sets the event callback for real-time scan notifications.
+func (s *Scanner) SetEmitter(fn EventEmitter) {
+	s.emitter = fn
+}
+
+func (s *Scanner) emit(eventName string, data any) {
+	if s.emitter != nil {
+		s.emitter(eventName, data)
+	}
+}
+
 // LastScan returns the time of the last completed scan.
 func (s *Scanner) LastScan() time.Time {
 	s.mu.RLock()
@@ -131,14 +158,26 @@ func (s *Scanner) runScan(ctx context.Context) {
 	s.lastScan = start
 	s.mu.Unlock()
 
+	duration := time.Since(start)
 	slog.Info("scan cycle complete",
-		"duration", time.Since(start),
+		"duration", duration,
 		"findings", len(findings),
 		"score", score.Score,
 		"critical", score.Critical,
 		"high", score.High,
 		"medium", score.Medium,
 	)
+
+	// Emit scan-complete event for real-time dashboard updates
+	s.emit("scanner:complete", ScanCompleteEvent{
+		Score:        score.Score,
+		FindingCount: score.Findings,
+		Critical:     score.Critical,
+		High:         score.High,
+		Medium:       score.Medium,
+		Low:          score.Low,
+		DurationMs:   duration.Milliseconds(),
+	})
 }
 
 // scanNetwork checks listening ports and flags risky ones as findings.
@@ -218,10 +257,10 @@ func (s *Scanner) detectLateralMovement(ctx context.Context, ts time.Time) []mod
 		}
 
 		// Check suspicious parent-child
-		if suspChildren, ok := skills.SuspiciousParentChild[toLower(parentName)]; ok {
-			nameLower := toLower(name)
+		if suspChildren, ok := skills.SuspiciousParentChild[strings.ToLower(parentName)]; ok {
+			nameLower := strings.ToLower(name)
 			for _, child := range suspChildren {
-				if nameLower == child || contains(nameLower, child) {
+				if nameLower == child || strings.Contains(nameLower, child) {
 					findings = append(findings, models.Finding{
 						ID:          fmt.Sprintf("lm-pchild-%d", p.Pid),
 						Title:       fmt.Sprintf("Suspicious child process: %s spawned by %s", name, parentName),
@@ -238,9 +277,9 @@ func (s *Scanner) detectLateralMovement(ctx context.Context, ts time.Time) []mod
 		}
 
 		// Check suspicious command patterns
-		cmdLower := toLower(cmdline)
+		cmdLower := strings.ToLower(cmdline)
 		for _, pattern := range skills.SuspiciousCommandPatterns {
-			if contains(cmdLower, toLower(pattern)) {
+			if strings.Contains(cmdLower, strings.ToLower(pattern)) {
 				findings = append(findings, models.Finding{
 					ID:          fmt.Sprintf("lm-cmd-%d-%s", p.Pid, sanitizeID(pattern)),
 					Title:       fmt.Sprintf("Suspicious command pattern: %s", pattern),
@@ -332,32 +371,6 @@ func getProcessName(pid int32) string {
 	}
 	name, _ := p.Name()
 	return name
-}
-
-func toLower(s string) string {
-	// inline to avoid importing strings just for ToLower
-	b := make([]byte, len(s))
-	for i := range s {
-		c := s[i]
-		if c >= 'A' && c <= 'Z' {
-			c += 'a' - 'A'
-		}
-		b[i] = c
-	}
-	return string(b)
-}
-
-func contains(s, substr string) bool {
-	return len(substr) > 0 && len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 // sanitizeID makes a string safe for use in a finding ID.

@@ -56,7 +56,9 @@ Binary output: `build/bin/neuropanopticon` (~19MB)
   - Added Validate() method checking backend type, URL/key requirements, temperature [0,2], max_tokens [1,128000], scan interval >= 10
   - Wired into Load() and Save() so invalid configs are rejected at both entry points
   - Added 8 config validation tests with table-driven subtests
-- [ ] Replace custom string utils in scanner.go (toLower, contains) with strings stdlib
+- [x] Replace custom string utils in scanner.go (toLower, contains) with strings stdlib
+  - Removed toLower(), contains(), searchString() — replaced with strings.ToLower/strings.Contains
+  - Kept sanitizeID() (no stdlib equivalent)
 - [ ] Fix log file handle leak in backend/logging/logging.go (file opened but never closed)
 - [ ] Add negative/zero PID validation in sbom_inspector.go
 
